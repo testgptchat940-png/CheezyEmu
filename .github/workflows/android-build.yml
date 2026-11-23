@@ -2,13 +2,6 @@ name: Build Android via CI script
 
 on:
   workflow_dispatch:
-    inputs:
-      target:
-        description: 'Build target (standard, legacy, optimized, chromeos)'
-        default: 'standard'
-      build_type:
-        description: 'Build type (Release, RelWithDebInfo, Debug)'
-        default: 'Release'
 
 jobs:
   build:
@@ -25,29 +18,26 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Android SDK and NDK
-        uses: android-actions/setup-android@v3
-        with:
-          ndk-version: '27.1.12297006'
-          build-tools-version: '35.0.0'
-          packages: |
-            platform-tools
-            platforms;android-35
+      - name: Install Android SDK and NDK
+        run: |
+          SDK_DIR="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          yes | sdkmanager --sdk_root="$SDK_DIR" --licenses >/dev/null || true
+          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;27.1.12297006"
 
       - name: Install build tools
         run: sudo apt-get update && sudo apt-get install -y cmake ninja-build ccache
 
-      - name: Run .ci/android/build.sh
+      - name: Run Android build script
         env:
           CCACHE: 'true'
         run: |
           chmod +x ./.ci/android/build.sh
-          ./.ci/android/build.sh -t "${{ inputs.target }}" -b "${{ inputs.build_type }}"
+          ./.ci/android/build.sh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: android-${{ inputs.target }}-${{ inputs.build_type }}
+          name: android-build
           path: |
             artifacts/*
             src/android/app/build/outputs/**/*.apk
